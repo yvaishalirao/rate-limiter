@@ -1,4 +1,10 @@
 import hashlib
+import os
+
+from pybreaker import CircuitBreakerError
+
+from redis_client import call_redis, registered_script
+
 
 def make_key(identifier: str) -> str:
     """
@@ -8,3 +14,21 @@ def make_key(identifier: str) -> str:
     """
     digest = hashlib.sha256(identifier.encode()).hexdigest()[:16]
     return f'rate_limit:{digest}'
+
+
+def check_rate_limit(identifier: str) -> dict:
+    limit = int(os.environ.get('RATE_LIMIT_N', 100))
+    window_s = int(os.environ.get('RATE_LIMIT_WINDOW_S', 60))
+    window_ms = window_s * 1000
+
+    key = make_key(identifier)
+
+    try:
+        result = call_redis(registered_script, keys=[key], args=[window_ms, limit, window_s])
+        count, lim = int(result[0]), int(result[1])
+    except CircuitBreakerError:
+        return {'allowed': True, 'remaining': -1}
+
+    allowed = count <= limit
+    remaining = max(0, lim - count)
+    return {'allowed': allowed, 'remaining': remaining}
