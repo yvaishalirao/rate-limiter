@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 3
+
+  api:
+    build: .
+    ports:
+      - '8000:8000'
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - RATE_LIMIT_N
+      - RATE_LIMIT_WINDOW_S
+      - REDIS_URL
+      - CB_FAIL_MAX
+      - CB_RESET_TIMEOUT
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2
+    # deploy.replicas: 1
