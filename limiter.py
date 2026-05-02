@@ -16,10 +16,17 @@ def make_key(identifier: str) -> str:
     return f'rate_limit:{digest}'
 
 
+def _validate_window_config():
+    window_s = int(os.getenv('RATE_LIMIT_WINDOW_S', 60))
+    window_ms = window_s * 1000
+    # No independent window_ms env var allowed.
+    # This function documents and enforces INV-9.
+    return window_s, window_ms
+
+
 def check_rate_limit(identifier: str) -> dict:
     limit = int(os.environ.get('RATE_LIMIT_N', 100))
-    window_s = int(os.environ.get('RATE_LIMIT_WINDOW_S', 60))
-    window_ms = window_s * 1000
+    window_s, window_ms = _validate_window_config()
 
     key = make_key(identifier)
 
