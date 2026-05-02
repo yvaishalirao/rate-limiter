@@ -80,6 +80,18 @@ def test_normal_request_after_mock_restored(client):
 
 
 # ---------------------------------------------------------------------------
+# Generic (non-Redis) exception on /check-rate-limit → fail-open (INV-6)
+# Exercises general_error_handler in app.py
+# ---------------------------------------------------------------------------
+
+def test_fail_open_on_generic_exception(client):
+    with patch("limiter.call_redis", side_effect=RuntimeError("unexpected crash")):
+        resp = post(client)
+    assert resp.status_code == 200  # never 500 (INV-6)
+    assert resp.json() == FAIL_OPEN
+
+
+# ---------------------------------------------------------------------------
 # Health route is independent of Redis (INV-6 scope is /check-rate-limit)
 # ---------------------------------------------------------------------------
 
